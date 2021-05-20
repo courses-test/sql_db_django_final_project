@@ -132,6 +132,7 @@ def show_exam_result(request, course_id, submission_id):
         print(str(question.id) +' = ' + str(sub_count)+'/'+str(ok_count))
         if ok_count == sub_count:
             total_score += question.grade
+    total_score = round(total_score)
     
     context['course'] = course
     context['grade'] = total_score
