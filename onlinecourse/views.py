@@ -1,7 +1,7 @@
 from django.shortcuts import render
 from django.http import HttpResponseRedirect
 # <HINT> Import any new Models here
-from .models import Course, Enrollment
+from .models import Course, Enrollment, Question, Choice, Submission
 from django.contrib.auth.models import User
 from django.shortcuts import get_object_or_404, render, redirect
 from django.urls import reverse
@@ -101,6 +101,43 @@ def enroll(request, course_id):
         course.save()
 
     return HttpResponseRedirect(reverse(viewname='onlinecourse:course_details', args=(course.id,)))
+
+
+def submit(request, course_id):
+    user = request.user
+    enroll = Enrollment.objects.get(user=user, course=course_id)
+    sub = Submission.objects.create(enrollment=enroll)
+    sub.choices.set(extract_answers(request))
+    sub.save()
+    return HttpResponseRedirect(reverse(viewname='onlinecourse:show_exam_result', args=(course_id, sub.id,)))
+
+def extract_answers(request):
+    submitted_anwsers = []
+    for key in request.POST:
+        if key.startswith('choice'):
+            value = request.POST[key]
+            choice_id = int(value)
+            submitted_anwsers.append(choice_id)
+    return submitted_anwsers
+
+def show_exam_result(request, course_id, submission_id):
+    context = {}
+    user = request.user    
+    course = get_object_or_404(Course, pk=course_id)    
+    sub = get_object_or_404(Submission, pk=submission_id)
+    total_score = 0
+    for question in course.question_set.all():
+        ok_count = question.choice_set.filter(is_correct = True).count()
+        sub_count = sub.choices.filter(question__id = question.id, is_correct = True).count()
+        print(str(question.id) +' = ' + str(sub_count)+'/'+str(ok_count))
+        if ok_count == sub_count:
+            total_score += question.grade
+    
+    context['course'] = course
+    context['grade'] = total_score
+    context['selected'] = sub.choices.all()
+    return render(request, 'onlinecourse/exam_result_bootstrap.html', context)
+    
 
 
 # <HINT> Create a submit view to create an exam submission record for a course enrollment,
